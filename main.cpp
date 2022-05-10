@@ -1,7 +1,7 @@
 #include "graphics.h"
+
 #include <iostream>
 #include <math.h>
-#include <stdlib.h>                     // Provides exit
 
 #define M_PI 3.1415926535897932384626433832795
 
@@ -48,126 +48,67 @@ public:
 		this->y *= s;
 	}
 
-private:
-
-
-};
-
-
-class Position
-{
-public:
-	float size;
-	float angle = 0;
-
-	Vec2 vector;
-
-	Position() {
-		Position(Vec2(0, 0), Vec2(1, 1));
+	void operator/=(float s) {
+		this->x /= s;
+		this->y /= s;
 	}
-	Position(Vec2 start, Vec2 end) {
-		this->x = start.x;
-		this->y = start.y;
-		this->size = Vec2(end.x - start.x, end.y - start.y).distance();
-		this->angle = atan((end.x - start.x) / (end.y - start.y )) * 180 / M_PI;
 
-		this->vector = Vec2(end.x - start.x, end.y - start.y).normalize();
+	void operator+=(Vec2 vec) {
+		this->x += vec.x;
+		this->y += vec.y;
 	}
 	
-	Vec2* start() {
-		return new Vec2(this->x, this->y);
+	void operator-=(Vec2 vec) {
+		this->x -= vec.x;
+		this->y -= vec.y;
 	}
 
-	Vec2* end() {
-
-		return new Vec2(this->x + this->size * vector.x, this->y + this->size * vector.y);
-	}
-
-	void moveTo(int x, int y)
-	{
-		this->x = x;
-		this->y = y;
-	}
-
-	void applyRotate(int deg)
-	{
-		angle += deg;
-		angle = angle > 360.f ? angle - 360.f : angle;
-		angle = angle < 0.f ? angle + 360.f : angle;
-
-		vector.rotate(deg);
+	Vec2 operator+(Vec2 vec) {
 		
+		return Vec2(this->x + vec.x, this->y + vec.y);
 	}
 
-	void scale(float ratio) {
-		vector *= ratio;
+	Vec2 operator*(float scale) {
+
+		return Vec2(this->x * scale, this->y * scale);
+	}
+
+
+	Vec2 operator-(Vec2 vec) {
+		return Vec2(this->x - vec.x, this->y - vec.y);
+	}
+	
+	float getNum() {
+		return x * y;
 	}
 
 private:
-	int x;
-	int y;
+
+
 };
+
 
 class Line
 {
 public:
 	int color = RED;
 
-	Position position;
+	Vec2 A;
+	Vec2 B;
 
-	Line(Position position)
+	Line(Vec2 A, Vec2 B)
 	{
-		this->position = position;
+		this->A = A;
+		this->B = B;
 	}
 
-	void DrawWithFirstMethod()
+	void draw()
 	{
 		setcolor(this->color);
 		setlinestyle(SOLID_LINE, 1, THICK_WIDTH);
 
-		moveto((int)position.start()->x, (int)position.start()->y);
-		lineto((int)position.end()->x, (int)position.end()->y);
-
-	}
-
-	void DrawWithSecondMethod()
-	{
-		setcolor(this->color);
-		int x1 = position.start()->x,
-			y1 = position.start()->y,
-			x2 = position.end()->x,
-			y2 = position.end()->y;
-
-
-		const int deltaX = abs(x2 - x1);
-		const int deltaY = abs(y2 - y1);
-		const int signX = x1 < x2 ? 1 : -1;
-		const int signY = y1 < y2 ? 1 : -1;
-
-		int error = deltaX - deltaY;
-
-		putpixel(x2, y2, this->color);
-
-		while (x1 != x2 || y1 != y2)
-		{
-			putpixel(x1, y1, this->color);
-			putpixel(x1-1, y1, this->color);
-			putpixel(x1+1, y1, this->color);
-			putpixel(x1, y1 - 1, this->color);
-			putpixel(x1, y1 + 1, this->color);
-
-			int error2 = error * 2;
-			if (error2 > -deltaY)
-			{
-				error -= deltaY;
-				x1 += signX;
-			}
-			if (error2 < deltaX)
-			{
-				error += deltaX;
-				y1 += signY;
-			}
-		}
+		moveto(this->A.x, this->A.y);
+		lineto(this->B.x, this->B.y);
 
 	}
 
@@ -181,120 +122,194 @@ private:
 };
 
 
+class Triangle
+{
+public:
+
+	Triangle(Vec2 A, Vec2 B, Vec2 C) {
+		this->A = A;
+		this->B = B;
+		this->C = C;
+	}
+
+	void move(Vec2 delta)
+	{
+		this->A += delta;
+		this->B += delta;
+		this->C += delta;
+	}
+
+	void rotate(int deg)
+	{
+		Vec2 center = this->getCenter();
+
+		this->A -= center;
+		this->B -= center;
+		this->C -= center;
+
+		this->A.rotate(deg);
+		this->B.rotate(deg);
+		this->C.rotate(deg);
+
+		this->A += center;
+		this->B += center;
+		this->C += center;
+	}
+
+	Vec2 getCenter() {
+		Vec2 center = this->A + this->B + this->C;
+		center /= 3;
+
+		return center;
+	}
+
+	void scale(float ratio) {
+		Vec2 center = this->getCenter();
+
+		this->move(center * (-1));
+
+		this->A *= ratio;
+		this->B *= ratio;
+		this->C *= ratio;
+
+		this->move(center);
+
+	}
+
+	bool inArea(Vec2 P) {
+		int x[4] = { P.x, A.x, B.x, C.x };
+		int y[4] = { P.y, A.y, B.y, C.y };
+
+		int a = (x[1] - x[0]) * (y[2] - y[1]) - (x[2] - x[1]) * (y[1] - y[0]);
+		int b = (x[2] - x[0]) * (y[3] - y[2]) - (x[3] - x[2]) * (y[2] - y[0]);
+		int c = (x[3] - x[0]) * (y[1] - y[3]) - (x[1] - x[3]) * (y[3] - y[0]);
+
+		return (a >= 0 && b >= 0 && c >= 0) || (a <= 0 && b <= 0 && c <= 0);
+	}
+
+	void fill(int x, int y)
+	{
+		int c = getpixel(x, y);
+
+		if (x > 0 && y > 0 && inArea(Vec2(x, y)) && (c != BLUE))
+		{
+			putpixel(x, y, BLUE);
+
+			fill(x - 1, y);
+			fill(x + 1, y);
+			fill(x, y - 1);
+			fill(x, y + 1);
+		}
+	}
+
+	void render() {
+		Line line1(this->A, this->B);
+		Line line2(this->B, this->C);
+		Line line3(this->C, this->A);
+
+		line1.draw();
+		line2.draw();
+		line3.draw();
+
+		Vec2 center = getCenter();
+		fill(center.x, center.y);
+
+		setcolor(WHITE);
+
+		outtextxy(this->A.x, this->A.y, "A");
+		outtextxy(this->B.x, this->B.y, "B");
+		outtextxy(this->C.x, this->C.y, "C");
+
+	}
+
+private:
+	Vec2 A;
+	Vec2 B;
+	Vec2 C;
+};
+
+
+
 void check_keys();
-void mouseEvent(int x, int y);
-void setActiveLine(Line *line);
 void render();
 
-Line line1(Position(Vec2(0.f, 0.f), Vec2(100.f, 100.f)));
-Line line2(Position(Vec2(500.f, 250.f), Vec2(450.f, 300.f)));
 
-Line *activeLine = &line1;
+Triangle triangle(Vec2(100.f, 0.f), Vec2(100.f, 100.f), Vec2(200.f, 100.f));
 
-void mouseEvent(int x, int y) {
-	if (activeLine) activeLine->position.moveTo(x, y);
-	render();
-}
-
-void setActiveLine(Line *line) {
-	if(activeLine)	activeLine->setColor(RED);
-
-	activeLine = line;
-
-	if (activeLine) activeLine->setColor(COLOR(255, 255, 0));
-
-}
-
-void changeActiveLine(int x, int y) {
-	if (activeLine == &line1) {
-		setActiveLine(&line2);
-	} else if(activeLine == &line2) {
-		setActiveLine(nullptr);
-	} else {
-		setActiveLine(&line1);
-	}
-	mouseEvent(x, y);
-}
 
 void check_keys()
 {
 	int command;
-
-	if (!activeLine) return;
+	float delta = 5.f;
 
 	if (kbhit() == true)
 	{
-		command = getch();
-		if (command == 224)
+		command = toupper(getch());
+
+		if (GetKeyState('Q') & 0x8000)
 		{
-			command = getch();
+			triangle.rotate(-delta);
 		}
 
-		float delta = 5.f;
-		
-		if (char(command) == KEY_LEFT)
+		if (GetKeyState('E') & 0x8000)
 		{
-			activeLine->position.applyRotate(-delta);
-		} 
-		else if(char(command) == KEY_RIGHT)
-		{
-			activeLine->position.applyRotate(delta);
-		} 
-		else if(command == KEY_UP)
-		{
-			activeLine->position.scale(1.5);
+			triangle.rotate(delta);
 		}
-		else if (command == KEY_DOWN)
+
+		if (GetKeyState('W') & 0x8000)
 		{
-			activeLine->position.scale(1 / 1.5);
+			triangle.move(Vec2(0, -delta));
+		}
+
+		if (GetKeyState('S') & 0x8000)
+		{
+			triangle.move(Vec2(0, delta));
+		}
+
+		if (GetKeyState('A') & 0x8000)
+		{
+			triangle.move(Vec2(-delta, 0));
+		}
+
+		if (GetKeyState('D') & 0x8000)
+		{
+			triangle.move(Vec2(delta, 0));
+		}
+
+		if (GetKeyState('C') & 0x8000)
+		{
+			triangle.scale(0.5);
+		}
+
+		if (GetKeyState('V') & 0x8000)
+		{
+			triangle.scale(2);
 		}
 
 		render();
 
 	}
+	
 }
 
 void render() {
-	setactivepage(0);
-	clearviewport();
+	cleardevice();
 
-	line1.DrawWithFirstMethod();
-	line2.DrawWithSecondMethod();
+	triangle.render();
 
-	setcolor(WHITE);
-
-	if (activeLine) {
-		char msg[512];
-		char msg2[512];
-
-		sprintf(msg, "Position (%f, %f) (%f, %f) ", activeLine->position.start()->x, activeLine->position.start()->y, activeLine->position.end()->x, activeLine->position.end()->y);
-		sprintf(msg2, "Angle: %d Size: %f VX: %f VY: %f", (int)(activeLine->position.angle), activeLine->position.size, activeLine->position.vector.x, activeLine->position.vector.y);
-
-		outtextxy(0, 0, msg);
-		outtextxy(0, 20, msg2);
-	}
-	
-
-	setvisualpage(0);
+	swapbuffers();
 }
 
 int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
 {
 
-	cout << "Press 'Q' to quit" << endl;
-
 	initwindow(800, 500);
-	registermousehandler(WM_MOUSEMOVE, mouseEvent);
-	registermousehandler(WM_LBUTTONDOWN, changeActiveLine);
-
-	setActiveLine(&line1);
 	render();
 
 	while (true) 
 	{
 		check_keys();
-		delay(10);
+		delay(20);
 	}
 
 }
-
