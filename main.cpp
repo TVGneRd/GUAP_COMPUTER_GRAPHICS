@@ -1,173 +1,188 @@
 #include "graphics.h"
+
 #include <iostream>
 #include <math.h>
-#include <stdlib.h>                     // Provides exit
 
 #define M_PI 3.1415926535897932384626433832795
 
 using namespace std;
 
-class Vec2
+template <int ROWS, int COLUMNS>
+class Matrix {
+
+public:
+
+	float **matrix;
+	int rows;
+	int columns;
+
+	Matrix() {};
+
+	Matrix(float arr[ROWS][COLUMNS]) {
+		matrix = new float *[ROWS];
+
+		rows = ROWS;
+		columns = COLUMNS;
+
+		for (int i = 0; i < ROWS; i++) {
+			matrix[i] = new float[COLUMNS];
+
+			for (int j = 0; j < COLUMNS; j++) {
+				matrix[i][j] = arr[i][j];
+			}
+		}
+	}
+
+	float* operator[](int n){
+		return matrix[n];
+	}
+
+	static Matrix getScale(float sx, float sy, float sz) {
+		float a[4][4] = {
+			{sx, 0, 0, 0},
+			{0, sy, 0, 0},
+			{0, 0, sz, 0},
+			{0, 0,  0,  1.f},
+		};
+
+		return Matrix<4,4>(a);
+	}
+
+	static Matrix getTransition(float dx, float dy, float dz) {
+		float a[4][4] = {
+			{1, 0, 0, dx},
+			{0, 1, 0, dy},
+			{0, 0, 1, dz},
+			{0, 0, 0, 1},
+		};
+
+		return Matrix<4, 4>(a);
+	}
+
+	static Matrix getRotationX(int angle) {
+		float rad = M_PI / 180 * angle;
+
+		float a[4][4] = {
+				{1, 0, 0, 0},
+				{0, cos(rad), -sin(rad), 0},
+				{0, sin(rad), cos(rad), 0},
+				{0, 0, 0, 1},
+		};
+
+		return Matrix<4, 4>(a);
+	}
+
+	static Matrix getRotationY(int angle) {
+		float rad = M_PI / 180 * angle;
+
+		float a[4][4] = {
+				{cos(rad), 0, sin(rad), 0},
+				{0, 1, 0, 0},
+				{-sin(rad), 0, cos(rad), 0},
+				{0, 0, 0, 1},
+		};
+
+		return Matrix<4, 4>(a);
+	}
+
+	static Matrix getRotationZ(int angle) {
+		float rad = M_PI / 180 * angle;
+
+		float a[4][4] = {
+				{cos(rad), -sin(rad), 0, 0},
+				{sin(rad), cos(rad), 0, 0},
+				{0, 0, 1, 0},
+				{0, 0, 0, 1},
+		};
+
+		return Matrix<4, 4>(a);
+	}
+private:
+};
+
+class Vec3
 {
 public:
 	float x = 0.f;
 	float y = 0.f;
+	float z = 0.f;
+	float w = 0.f;
 
-	Vec2()
+	Vec3()
 	{
-		Vec2(0.f, 0.f);
+		Vec3(0.f, 0.f, 0.f);
 	}
 
-	Vec2(float x, float y) 
-	{
-		this->x = x;
-		this->y = y;
-	}
-
-	float distance() {
-		return sqrt(x*x + y*y);
-	}
-
-	Vec2 normalize() {
-		float dist = distance();
-		return Vec2(this->x / dist, this->y / dist);
-	}
-
-	void rotate(double deg) {
-		double theta = deg / 180.0 * M_PI;
-		double c = cos(theta);
-		double s = sin(theta);
-		double tx = x * c - y * s;
-		double ty = x * s + y * c;
-		x = tx;
-		y = ty;
-	}
-
-	void operator*=(float s) {
-		this->x *= s;
-		this->y *= s;
-	}
-
-private:
-
-
-};
-
-
-class Position
-{
-public:
-	float size;
-	float angle = 0;
-
-	Vec2 vector;
-
-	Position() {
-		Position(Vec2(0, 0), Vec2(1, 1));
-	}
-	Position(Vec2 start, Vec2 end) {
-		this->x = start.x;
-		this->y = start.y;
-		this->size = Vec2(end.x - start.x, end.y - start.y).distance();
-		this->angle = atan((end.x - start.x) / (end.y - start.y )) * 180 / M_PI;
-
-		this->vector = Vec2(end.x - start.x, end.y - start.y).normalize();
-	}
-	
-	Vec2* start() {
-		return new Vec2(this->x, this->y);
-	}
-
-	Vec2* end() {
-
-		return new Vec2(this->x + this->size * vector.x, this->y + this->size * vector.y);
-	}
-
-	void moveTo(int x, int y)
+	Vec3(float x, float y, float z, float w = 0.f)
 	{
 		this->x = x;
 		this->y = y;
+		this->z = z;
+		this->w = w;
 	}
 
-	void applyRotate(int deg)
-	{
-		angle += deg;
-		angle = angle > 360.f ? angle - 360.f : angle;
-		angle = angle < 0.f ? angle + 360.f : angle;
+	void operator+=(Vec3 vec) {
+		this->x += vec.x;
+		this->y += vec.y;
+		this->z += vec.z;
+	}
 
-		vector.rotate(deg);
+	void operator/=(float s) {
+		this->x /= s;
+		this->y /= s;
+		this->z /= s;
+	}
+
+	void operator-=(Vec3 vec) {
+		this->x -= vec.x;
+		this->y -= vec.y;
+		this->z -= vec.z;
+	}
+
+	Vec3 operator+(Vec3 vec) {
 		
+		return Vec3(this->x + vec.x, this->y + vec.y, this->z + vec.z);
 	}
 
-	void scale(float ratio) {
-		vector *= ratio;
+	void operator*=(Matrix<4,4> m) {
+		float x = this->x;
+		float y = this->y;
+		float z = this->z;
+		float w = this->w;
+
+		this->x = m[0][0] * x + m[0][1] * y + m[0][2] * z + m[0][3] * w;
+		this->y = m[1][0] * x + m[1][1] * y + m[1][2] * z + m[1][3] * w;
+		this->z = m[2][0] * x + m[2][1] * y + m[2][2] * z + m[2][3] * w;
+		this->w = m[3][0] * x + m[3][1] * y + m[3][2] * z + m[3][3] * w;
 	}
 
 private:
-	int x;
-	int y;
+
+
 };
+
 
 class Line
 {
 public:
 	int color = RED;
 
-	Position position;
+	Vec3 A;
+	Vec3 B;
 
-	Line(Position position)
+	Line(Vec3 A, Vec3 B)
 	{
-		this->position = position;
+		this->A = A;
+		this->B = B;
 	}
 
-	void DrawWithFirstMethod()
+	void draw()
 	{
 		setcolor(this->color);
 		setlinestyle(SOLID_LINE, 1, THICK_WIDTH);
 
-		moveto((int)position.start()->x, (int)position.start()->y);
-		lineto((int)position.end()->x, (int)position.end()->y);
-
-	}
-
-	void DrawWithSecondMethod()
-	{
-		setcolor(this->color);
-		int x1 = position.start()->x,
-			y1 = position.start()->y,
-			x2 = position.end()->x,
-			y2 = position.end()->y;
-
-
-		const int deltaX = abs(x2 - x1);
-		const int deltaY = abs(y2 - y1);
-		const int signX = x1 < x2 ? 1 : -1;
-		const int signY = y1 < y2 ? 1 : -1;
-
-		int error = deltaX - deltaY;
-
-		putpixel(x2, y2, this->color);
-
-		while (x1 != x2 || y1 != y2)
-		{
-			putpixel(x1, y1, this->color);
-			putpixel(x1-1, y1, this->color);
-			putpixel(x1+1, y1, this->color);
-			putpixel(x1, y1 - 1, this->color);
-			putpixel(x1, y1 + 1, this->color);
-
-			int error2 = error * 2;
-			if (error2 > -deltaY)
-			{
-				error -= deltaY;
-				x1 += signX;
-			}
-			if (error2 < deltaX)
-			{
-				error += deltaX;
-				y1 += signY;
-			}
-		}
+		moveto(this->A.x, this->A.y);
+		lineto(this->B.x, this->B.y);
 
 	}
 
@@ -181,120 +196,231 @@ private:
 };
 
 
+class Pyramid
+{
+public:
+	int verticesLength = 8;
+	int edgesLength = 12;
+	int controlMode = 0;
+
+	Vec3 center = Vec3(250, 250, 0);
+	Vec3 rotateVec = Vec3(0, 0, 0); // usage in status only
+
+	Vec3 vertices[8] = {
+		 Vec3(0, 0, 0), // 0 вершина
+		 Vec3(1.f, 0, 0), // 1 вершина
+		 Vec3(0.5, pow(3, 1 / 2) / 2, 0), // 2 вершина
+		 Vec3(0.5, pow(3, 1 / 2) / 6, pow(6, 1 / 2) / 3), // 3 вершина
+	};
+
+	int edges[12][2] = {
+		{0, 1},
+		{1, 2},
+		{2, 0},
+
+		{0, 3},
+		{1, 3},
+		{2, 3},
+	};
+	
+
+	Pyramid() {
+		Vec3 center = getCenter();
+
+		for (int i = 0; i < verticesLength; i++) {
+			vertices[i] -= center;
+		}
+
+		scale(200);
+		rotate(Vec3(45, 45, 45));
+
+	}
+
+	void move(Vec3 delta)
+	{
+		center += delta;
+	}
+
+	void rotate(Vec3 rotateVector)
+	{
+		rotateVec += rotateVector;
+
+		if (rotateVector.x) {
+			Matrix rotateX = Matrix<4, 4>::getRotationX(rotateVector.x);
+
+			rotateVec.x = rotateVec.x > 360 ? rotateVec.x - 360 : rotateVec.x;
+			rotateVec.x = rotateVec.x < 0   ? 360 + rotateVec.x : rotateVec.x;
+
+			for (int i = 0; i < verticesLength; i++) {
+				vertices[i] *= rotateX;
+			}
+		}
+
+		if (rotateVector.y) {
+			rotateVec.y = rotateVec.y > 360 ? rotateVec.y - 360 : rotateVec.y;
+			rotateVec.y = rotateVec.y < 0   ? 360 + rotateVec.y : rotateVec.y;
+
+			Matrix rotateY = Matrix<4, 4>::getRotationY(rotateVector.y);
+			for (int i = 0; i < verticesLength; i++) {
+				vertices[i] *= rotateY;
+			}
+		}
+
+		if (rotateVector.z) {
+			rotateVec.z = rotateVec.z > 360 ? rotateVec.z - 360 : rotateVec.z;
+			rotateVec.z = rotateVec.z < 0   ? 360 + rotateVec.z : rotateVec.z;
+
+			Matrix rotateZ = Matrix<4, 4>::getRotationZ(rotateVector.z);
+			for (int i = 0; i < verticesLength; i++) {
+				vertices[i] *= rotateZ;
+			}
+		}
+		
+	}
+
+	Vec3 getCenter() {
+		Vec3 center = Vec3(0, 0, 0);
+
+		for (int i = 0; i < verticesLength; i++) {
+			center += vertices[i];
+		}
+
+		center /= verticesLength;
+
+		return center;
+	}
+
+	void scale(float ratio) {
+		Matrix scale = Matrix<4, 4>::getScale(ratio, ratio, ratio);
+
+		for (int i = 0; i < verticesLength; i++) {
+			vertices[i] *= scale;
+		}
+	}
+
+	void render() {
+		setcolor(RED);
+
+		for (int i = 0; i < edgesLength; i++) {
+			Line line(vertices[edges[i][0]] + center, vertices[edges[i][1]] + center);
+			line.draw();
+		}
+		
+		setcolor(WHITE);
+
+		string hud = "TRANSLATE: X: ";
+		hud += to_string(center.x);
+		hud += " Y: ";
+		hud += to_string(center.y);
+		hud += " Z: ";
+		hud += to_string(center.z);
+		hud += " ";
+		outtextxy(5, 0, hud.data());
+
+		string hud2 = "ROTATE:   X: ";
+		hud2 += to_string(rotateVec.x);
+		hud2 += " Y: ";
+		hud2 += to_string(rotateVec.y);
+		hud2 += " Z: ";
+		hud2 += to_string(rotateVec.z);
+		hud2 += " ";
+		outtextxy(5, 18, hud2.data());
+
+		string mode = "Mode: ";
+
+		mode += controlMode ? "MOVING" : "ROTATION";
+
+		outtextxy(780 - textwidth(mode.data()), 0, mode.data());
+	}
+
+private:
+	
+};
+
+
 void check_keys();
-void mouseEvent(int x, int y);
-void setActiveLine(Line *line);
 void render();
 
-Line line1(Position(Vec2(0.f, 0.f), Vec2(100.f, 100.f)));
-Line line2(Position(Vec2(500.f, 250.f), Vec2(450.f, 300.f)));
+Pyramid pyramid;
 
-Line *activeLine = &line1;
-
-void mouseEvent(int x, int y) {
-	if (activeLine) activeLine->position.moveTo(x, y);
-	render();
-}
-
-void setActiveLine(Line *line) {
-	if(activeLine)	activeLine->setColor(RED);
-
-	activeLine = line;
-
-	if (activeLine) activeLine->setColor(COLOR(255, 255, 0));
-
-}
-
-void changeActiveLine(int x, int y) {
-	if (activeLine == &line1) {
-		setActiveLine(&line2);
-	} else if(activeLine == &line2) {
-		setActiveLine(nullptr);
-	} else {
-		setActiveLine(&line1);
-	}
-	mouseEvent(x, y);
-}
 
 void check_keys()
 {
 	int command;
-
-	if (!activeLine) return;
+	float delta = 5.f;
 
 	if (kbhit() == true)
 	{
-		command = getch();
-		if (command == 224)
+		command = toupper(getch());
+		if (GetKeyState('Q') & 0x8000)
 		{
-			command = getch();
+			pyramid.controlMode ? pyramid.move(Vec3(0, 0, -delta)) : pyramid.rotate(Vec3(0, 0, -delta));
 		}
 
-		float delta = 5.f;
-		
-		if (char(command) == KEY_LEFT)
+		if (GetKeyState('E') & 0x8000)
 		{
-			activeLine->position.applyRotate(-delta);
-		} 
-		else if(char(command) == KEY_RIGHT)
-		{
-			activeLine->position.applyRotate(delta);
-		} 
-		else if(command == KEY_UP)
-		{
-			activeLine->position.scale(1.5);
+			pyramid.controlMode ? pyramid.move(Vec3(0, 0, delta)) : pyramid.rotate(Vec3(0, 0, delta));
 		}
-		else if (command == KEY_DOWN)
+
+		if (GetKeyState('W') & 0x8000)
 		{
-			activeLine->position.scale(1 / 1.5);
+			pyramid.controlMode ? pyramid.move(Vec3(0, -delta, 0)) : pyramid.rotate(Vec3(delta, 0, 0));
+		}
+
+		if (GetKeyState('S') & 0x8000)
+		{
+			pyramid.controlMode ? pyramid.move(Vec3(0, delta, 0)) : pyramid.rotate(Vec3(-delta, 0, 0));
+		}
+
+		if (GetKeyState('A') & 0x8000)
+		{
+			pyramid.controlMode ? pyramid.move(Vec3(-delta, 0, 0)) : pyramid.rotate(Vec3(0, -delta,  0));
+		}
+
+		if (GetKeyState('D') & 0x8000)
+		{
+			pyramid.controlMode ? pyramid.move(Vec3(delta, 0, 0)) : pyramid.rotate(Vec3(0, delta, 0));
+		}
+
+		if (GetKeyState('C') & 0x8000)
+		{
+			pyramid.scale(1 / 1.5);
+		}
+
+		if (GetKeyState('V') & 0x8000)
+		{
+			pyramid.scale(1.5);
+		}
+
+		if (GetKeyState(VK_TAB) & 0x8000)
+		{
+			pyramid.controlMode = !pyramid.controlMode;
 		}
 
 		render();
 
 	}
+	
 }
 
 void render() {
-	setactivepage(0);
-	clearviewport();
+	cleardevice();
 
-	line1.DrawWithFirstMethod();
-	line2.DrawWithSecondMethod();
+	pyramid.render();
 
-	setcolor(WHITE);
-
-	if (activeLine) {
-		char msg[512];
-		char msg2[512];
-
-		sprintf(msg, "Position (%f, %f) (%f, %f) ", activeLine->position.start()->x, activeLine->position.start()->y, activeLine->position.end()->x, activeLine->position.end()->y);
-		sprintf(msg2, "Angle: %d Size: %f VX: %f VY: %f", (int)(activeLine->position.angle), activeLine->position.size, activeLine->position.vector.x, activeLine->position.vector.y);
-
-		outtextxy(0, 0, msg);
-		outtextxy(0, 20, msg2);
-	}
-	
-
-	setvisualpage(0);
+	swapbuffers();
 }
 
 int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
 {
-
-	cout << "Press 'Q' to quit" << endl;
-
 	initwindow(800, 500);
-	registermousehandler(WM_MOUSEMOVE, mouseEvent);
-	registermousehandler(WM_LBUTTONDOWN, changeActiveLine);
 
-	setActiveLine(&line1);
 	render();
 
 	while (true) 
 	{
 		check_keys();
-		delay(10);
+		delay(20);
 	}
 
 }
-
